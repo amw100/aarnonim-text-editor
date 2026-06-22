@@ -1,38 +1,22 @@
-use std::io::stdout;
+use crossterm::event::{Event, Event::Key, KeyCode::Char, KeyEvent, KeyModifiers, read};
 
-use crossterm::event::{Event, KeyEvent, KeyModifiers};
-use crossterm::event::{Event::Key, KeyCode::Char, read};
-use crossterm::execute;
-use crossterm::terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode};
+mod terminal;
+use terminal::Terminal;
 
 pub struct Editor {
     should_quit: bool,
 }
 
 impl Editor {
-    pub fn default() -> Self {
-        Editor { should_quit: false }
+    pub const fn default() -> Self {
+        Self { should_quit: false }
     }
 
     pub fn run(&mut self) {
-        Self::initialize().unwrap();
+        Terminal::initialize().unwrap();
         let result = self.repl();
-        Self::terminate().unwrap();
+        Terminal::terminate().unwrap();
         result.unwrap();
-    }
-
-    fn initialize() -> Result<(), std::io::Error> {
-        enable_raw_mode()?;
-        Self::clear_screen()
-    }
-
-    fn terminate() -> Result<(), std::io::Error> {
-        disable_raw_mode()
-    }
-
-    fn clear_screen() -> Result<(), std::io::Error> {
-        let mut stdout = stdout();
-        execute!(stdout, Clear(ClearType::All))
     }
 
     fn repl(&mut self) -> Result<(), std::io::Error> {
@@ -64,17 +48,20 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         if self.should_quit {
-            Self::clear_screen()?;
+            Terminal::clear_screen()?;
             print!("GOODBYE NUTS!\r\n");
         }
         Ok(())
     }
 
     fn draw_rows() -> Result<(), std::io::Error> {
-        let (_, rows) = crossterm::terminal::size()?;
-        for row in 0..rows{
-            crossterm::cursor::MoveTo(0,row);
-            print!("~\r\n");
+        let (_, rows) = Terminal::size()?;
+        for row in 0..rows {
+            Terminal::move_cursor_to(0, row)?;
+            print!("~");
+            if row + 1 < rows {
+                print!("\r\n");
+            }
         }
         Ok(())
     }
