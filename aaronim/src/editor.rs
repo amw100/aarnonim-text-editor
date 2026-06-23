@@ -1,4 +1,5 @@
 use crossterm::event::{Event, Event::Key, KeyCode::Char, KeyEvent, KeyModifiers, read};
+use std::io::Error;
 
 mod terminal;
 use terminal::Terminal;
@@ -19,7 +20,7 @@ impl Editor {
         result.unwrap();
     }
 
-    fn repl(&mut self) -> Result<(), std::io::Error> {
+    fn repl(&mut self) -> Result<(), Error> {
         Self::draw_rows()?;
         loop {
             let event = read()?;
@@ -46,21 +47,27 @@ impl Editor {
         }
     }
 
-    fn refresh_screen(&self) -> Result<(), std::io::Error> {
+    fn refresh_screen(&self) -> Result<(), Error> {
+        Terminal::hide_cursor()?;
         if self.should_quit {
             Terminal::clear_screen()?;
-            print!("GOODBYE NUTS!\r\n");
+            Terminal::print("GOODBYE NUTS!\r\n")?;
+        } else {
+            Self::draw_rows()?;
+            Terminal::move_cursor_to(terminal::Position { x: 0, y: 0 })?;
+            Terminal::show_cursor()?;
+            Terminal::execute()?;
         }
         Ok(())
     }
 
-    fn draw_rows() -> Result<(), std::io::Error> {
-        let (_, rows) = Terminal::size()?;
-        for row in 0..rows {
-            Terminal::move_cursor_to(0, row)?;
-            print!("~");
-            if row + 1 < rows {
-                print!("\r\n");
+    fn draw_rows() -> Result<(), Error> {
+        let terminal::Size {height, ..} = Terminal::size()?;
+        for row in 0..height {
+            Terminal::clear_line()?;
+            Terminal::print("~")?;
+            if row + 1 < height {
+                Terminal::print("\r\n")?;
             }
         }
         Ok(())
