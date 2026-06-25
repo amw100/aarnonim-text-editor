@@ -4,6 +4,11 @@ use std::io::Error;
 mod terminal;
 use terminal::Terminal;
 
+use crate::editor::terminal::{Position, Size};
+
+const NAME: &str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub struct Editor {
     should_quit: bool,
 }
@@ -21,14 +26,13 @@ impl Editor {
     }
 
     fn repl(&mut self) -> Result<(), Error> {
-        Self::draw_rows()?;
         loop {
-            let event = read()?;
-            self.evaluate_event(&event);
             self.refresh_screen()?;
             if self.should_quit {
                 break;
             }
+            let event = read()?;
+            self.evaluate_event(&event);
         }
         Ok(())
     }
@@ -54,7 +58,7 @@ impl Editor {
             Terminal::print("GOODBYE NUTS!\r\n")?;
         } else {
             Self::draw_rows()?;
-            Terminal::move_cursor_to(terminal::Position { x: 0, y: 0 })?;
+            Terminal::move_cursor_to(Position { x: 0, y: 0 })?;
             Terminal::show_cursor()?;
             Terminal::execute()?;
         }
@@ -62,14 +66,35 @@ impl Editor {
     }
 
     fn draw_rows() -> Result<(), Error> {
-        let terminal::Size {height, ..} = Terminal::size()?;
+        let Size { height, .. } = Terminal::size()?;
         for row in 0..height {
-            Terminal::clear_line()?;
-            Terminal::print("~")?;
+            if row == height / 3 {
+                Self::draw_welcome_message()?;
+            } else {
+                Self::draw_empty_row()?;
+            }
             if row + 1 < height {
                 Terminal::print("\r\n")?;
             }
         }
+        Ok(())
+    }
+
+    fn draw_welcome_message() -> Result<(), Error> {
+        let width = Terminal::size()?.width as usize;
+        let mut message = format!("{NAME} NUTS EDITOR -- version {VERSION}");
+        let len = message.len();
+        let padding = (width - len) / 2;
+        let spaces = " ".repeat(padding - 1);
+        message = format!("~{spaces}{message}");
+        message.truncate(width);
+        Terminal::print(message)?;
+        Ok(())
+    }
+
+    fn draw_empty_row() -> Result<(), Error> {
+        Terminal::clear_line()?;
+        Terminal::print("~")?;
         Ok(())
     }
 }
