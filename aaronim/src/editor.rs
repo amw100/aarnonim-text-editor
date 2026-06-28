@@ -68,12 +68,13 @@ impl Editor {
     fn draw_rows() -> Result<(), Error> {
         let Size { height, .. } = Terminal::size()?;
         for row in 0..height {
+            #[allow(clippy::integer_division)]
             if row == height / 3 {
                 Self::draw_welcome_message()?;
             } else {
                 Self::draw_empty_row()?;
             }
-            if row + 1 < height {
+            if row.saturating_add(1) < height {
                 Terminal::print("\r\n")?;
             }
         }
@@ -81,11 +82,12 @@ impl Editor {
     }
 
     fn draw_welcome_message() -> Result<(), Error> {
-        let width = Terminal::size()?.width as usize;
+        let width = Terminal::size()?.width;
         let mut message = format!("{NAME} NUTS EDITOR -- version {VERSION}");
         let len = message.len();
-        let padding = (width - len) / 2;
-        let spaces = " ".repeat(padding - 1);
+        #[allow(clippy::integer_division)]
+        let padding = (width.saturating_sub(len)) / 2;
+        let spaces = " ".repeat(padding.saturating_sub(1));
         message = format!("~{spaces}{message}");
         message.truncate(width);
         Terminal::print(message)?;
