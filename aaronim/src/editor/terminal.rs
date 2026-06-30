@@ -6,7 +6,6 @@ use crossterm::{
     queue,
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
 };
-use std::fmt::Display;
 use std::io::{Error, Write, stdout};
 
 #[derive(Clone, Copy)]
@@ -64,7 +63,7 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn print<T: Display>(text: T) -> Result<(), std::io::Error> {
+    pub fn print(text: &str) -> Result<(), std::io::Error> {
         Self::queue_command(Print(text))?;
         Ok(())
     }

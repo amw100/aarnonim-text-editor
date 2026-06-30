@@ -7,11 +7,10 @@ use std::{cmp::min, io::Error};
 
 mod terminal;
 use terminal::Terminal;
+mod view;
+use view::View;
 
 use crate::editor::terminal::{Position, Size};
-
-const NAME: &str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone, Copy, Default)]
 pub struct Location {
@@ -123,7 +122,7 @@ impl Editor {
             Terminal::print("GOODBYE NUTS!\r\n")?;
         } else {
             Terminal::move_caret_to(Position::default())?;
-            Self::draw_rows()?;
+            View::render()?;
             Terminal::move_caret_to(Position {
                 x: self.location.column,
                 y: self.location.row,
@@ -131,41 +130,6 @@ impl Editor {
             Terminal::show_cursor()?;
             Terminal::execute()?;
         }
-        Ok(())
-    }
-
-    fn draw_rows() -> Result<(), Error> {
-        let Size { height, .. } = Terminal::size()?;
-        for row in 0..height {
-            #[allow(clippy::integer_division)]
-            if row == height / 3 {
-                Self::draw_welcome_message()?;
-            } else {
-                Self::draw_empty_row()?;
-            }
-            if row.saturating_add(1) < height {
-                Terminal::print("\r\n")?;
-            }
-        }
-        Ok(())
-    }
-
-    fn draw_welcome_message() -> Result<(), Error> {
-        let width = Terminal::size()?.width;
-        let mut message = format!("{NAME} NUTS EDITOR -- version {VERSION}");
-        let len = message.len();
-        #[allow(clippy::integer_division)]
-        let padding = (width.saturating_sub(len)) / 2;
-        let spaces = " ".repeat(padding.saturating_sub(1));
-        message = format!("~{spaces}{message}");
-        message.truncate(width);
-        Terminal::print(message)?;
-        Ok(())
-    }
-
-    fn draw_empty_row() -> Result<(), Error> {
-        Terminal::clear_line()?;
-        Terminal::print("~")?;
         Ok(())
     }
 }
