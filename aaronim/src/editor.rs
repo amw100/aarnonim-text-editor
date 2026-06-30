@@ -10,7 +10,7 @@ use terminal::Terminal;
 mod view;
 use view::View;
 
-use crate::editor::terminal::{Position, Size};
+use crate::editor::{terminal::{Position, Size}};
 
 #[derive(Clone, Copy, Default)]
 pub struct Location {
@@ -21,18 +21,21 @@ pub struct Location {
 pub struct Editor {
     should_quit: bool,
     location: Location,
+    view: View
 }
 
 impl Editor {
-    pub const fn default() -> Self {
+    pub fn default() -> Self {
         Self {
             should_quit: false,
             location: Location { row: 0, column: 0 },
+            view: View::default(),
         }
     }
 
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
+        self.view.add_line_to_buffer("HELLO NBUTS\r\n");
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
@@ -115,14 +118,14 @@ impl Editor {
         Ok(())
     }
 
-    fn refresh_screen(&self) -> Result<(), Error> {
+    fn refresh_screen(&mut self) -> Result<(), Error> {
         Terminal::hide_cursor()?;
         if self.should_quit {
             Terminal::clear_screen()?;
             Terminal::print("GOODBYE NUTS!\r\n")?;
         } else {
             Terminal::move_caret_to(Position::default())?;
-            View::render()?;
+            self.view.render()?;
             Terminal::move_caret_to(Position {
                 x: self.location.column,
                 y: self.location.row,

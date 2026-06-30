@@ -5,17 +5,30 @@ use crate::editor::terminal::{Size, Terminal};
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub struct View {}
+#[derive(Clone, Default)]
+pub struct Buffer {
+    lines: Vec<String>,
+}
+
+#[derive(Clone, Default)]
+pub struct View {
+    buffer: Buffer,
+}
 
 impl View {
-    pub fn render() -> Result<(), Error> {
+    pub fn default() -> Self {
+        Self {
+            buffer: Buffer { lines: Vec::new() },
+        }
+    }
+    pub fn render(&mut self) -> Result<(), Error> {
         let Size { height, .. } = Terminal::size()?;
-        for row in 0..height {
+        for line in &self.buffer.lines {
+            Terminal::print(line)?;
+        }
+        for row in self.buffer.lines.len()..height {
             #[allow(clippy::integer_division)]
-            if row == 0 {
-                Self::draw_hello_world()?;
-            }
-            else if row == height / 3 {
+            if row == height / 3 {
                 Self::draw_welcome_message()?;
             } else {
                 Self::draw_empty_row()?;
@@ -40,17 +53,13 @@ impl View {
         Ok(())
     }
 
-    fn draw_hello_world() -> Result<(), Error> {
-        let width = Terminal::size()?.width;
-        let mut message = String::from("HELLO NUTS");
-        message.truncate(width);
-        Terminal::print(&message)?;
-        Ok(())
-    }
-
     fn draw_empty_row() -> Result<(), Error> {
         Terminal::clear_line()?;
         Terminal::print("~")?;
         Ok(())
+    }
+
+    pub fn add_line_to_buffer(&mut self, str: &str){
+        self.buffer.lines.push(String::from(str));
     }
 }
