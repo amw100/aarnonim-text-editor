@@ -18,6 +18,7 @@ pub struct Location {
     column: usize,
 }
 
+#[derive(Default)]
 pub struct Editor {
     should_quit: bool,
     location: Location,

@@ -1,27 +1,19 @@
 use std::io::Error;
 
 use crate::editor::terminal::{Size, Terminal};
+mod buffer;
+use buffer::Buffer;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Clone, Default)]
-pub struct Buffer {
-    lines: Vec<String>,
-}
-
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct View {
     buffer: Buffer,
 }
 
 impl View {
-    pub fn default() -> Self {
-        Self {
-            buffer: Buffer { lines: Vec::new() },
-        }
-    }
-    pub fn render(&mut self) -> Result<(), Error> {
+    pub fn render(&self) -> Result<(), Error> {
         let Size { height, .. } = Terminal::size()?;
         for line in &self.buffer.lines {
             Terminal::print(line)?;
