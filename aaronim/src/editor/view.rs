@@ -13,14 +13,23 @@ pub struct View {
 }
 
 impl View {
+    pub fn new(file_contents: &str) -> Self {
+        let mut this = Self::default();
+        for line in file_contents.lines() {
+            this.add_line_to_buffer(line);
+        }
+        this
+    }
+
     pub fn render(&self) -> Result<(), Error> {
         let Size { height, .. } = Terminal::size()?;
-        for line in &self.buffer.lines {
-            Terminal::print(line)?;
-        }
-        for row in self.buffer.lines.len()..height {
-            #[allow(clippy::integer_division)]
-            if row == height / 3 {
+        #[allow(clippy::integer_division)]
+        let welcome_row = height / 3;
+        for row in 0..height {
+            if let Some(line) = self.buffer.lines.get(row) {
+                Terminal::clear_line()?;
+                Terminal::print(line)?;
+            } else if self.buffer.is_empty() && row == welcome_row {
                 Self::draw_welcome_message()?;
             } else {
                 Self::draw_empty_row()?;
@@ -33,6 +42,7 @@ impl View {
     }
 
     fn draw_welcome_message() -> Result<(), Error> {
+        Terminal::clear_line()?;
         let width = Terminal::size()?.width;
         let mut message = format!("{NAME} NUTS EDITOR -- version {VERSION}");
         let len = message.len();
@@ -51,7 +61,7 @@ impl View {
         Ok(())
     }
 
-    pub fn add_line_to_buffer(&mut self, str: &str){
+    pub fn add_line_to_buffer(&mut self, str: &str) {
         self.buffer.lines.push(String::from(str));
     }
 }

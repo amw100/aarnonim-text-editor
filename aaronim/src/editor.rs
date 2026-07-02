@@ -34,9 +34,17 @@ impl Editor {
         }
     }
 
+    pub fn new(filename: String) -> Self{
+        let file_contents = std::fs::read_to_string(filename).unwrap_or_default();
+        Editor {
+            should_quit: false,
+            location: Location { row: 0, column: 0 },
+            view: View::new(&file_contents)
+        }
+    }
+
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
-        self.view.add_line_to_buffer("HELLO NBUTS\r\n");
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
