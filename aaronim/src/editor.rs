@@ -10,7 +10,7 @@ use terminal::Terminal;
 mod view;
 use view::View;
 
-use crate::editor::{terminal::{Position, Size}};
+use crate::editor::terminal::{Position, Size};
 
 #[derive(Clone, Copy, Default)]
 pub struct Location {
@@ -22,34 +22,24 @@ pub struct Location {
 pub struct Editor {
     should_quit: bool,
     location: Location,
-    view: View
+    view: View,
 }
 
 impl Editor {
-    pub fn default() -> Self {
-        Self {
-            should_quit: false,
-            location: Location { row: 0, column: 0 },
-            view: View::default(),
-        }
-    }
-
-    pub fn new(filename: String) -> Self{
-        let file_contents = std::fs::read_to_string(filename).unwrap_or_default();
-        Editor {
-            should_quit: false,
-            location: Location { row: 0, column: 0 },
-            view: View::new(&file_contents)
-        }
-    }
-
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
+        self.handle_args();
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
     }
 
+    fn handle_args(&mut self) {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(filename) = args.get(1) {
+            self.view.load_file(filename);
+        }
+    }
     fn repl(&mut self) -> Result<(), Error> {
         loop {
             self.refresh_screen()?;
