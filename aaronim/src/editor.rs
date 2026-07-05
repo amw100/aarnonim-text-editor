@@ -89,7 +89,10 @@ impl Editor {
         Ok(())
     }
 
-    fn evaluate_event(&mut self, event: &Event) -> Result<(), Error> {
+    fn evaluate_event(&mut self, event: &Event) -> Result<(), Error>{
+        if event.is_resize() {
+            self.view.needs_redraw();
+        }
         if let Key(KeyEvent {
             code,
             modifiers,

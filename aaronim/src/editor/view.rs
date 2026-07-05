@@ -7,14 +7,21 @@ use buffer::Buffer;
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Default)]
 pub struct View {
     buffer: Buffer,
+    needs_redraw: bool,
+}
+
+impl Default for View {
+    fn default() -> Self {
+        Self {
+            buffer: Buffer::default(),
+            needs_redraw: true,
+        }
+    }
 }
 
 impl View {
-
-
     pub fn render_welcome_screen() -> Result<(), Error> {
         let Size { height, .. } = Terminal::size()?;
         #[allow(clippy::integer_division)]
@@ -26,33 +33,44 @@ impl View {
                 Self::draw_empty_row()?;
             }
             if row.saturating_add(1) < height {
-                Terminal::move_caret_to(Position {x: 0, y: row.saturating_add(1)})?;
+                Terminal::move_caret_to(Position {
+                    x: 0,
+                    y: row.saturating_add(1),
+                })?;
             }
         }
         Ok(())
     }
 
     pub fn render_buffer(&self) -> Result<(), Error> {
-        let Size { height, .. } = Terminal::size()?;
+        let Size { height, width } = Terminal::size()?;
         for row in 0..height {
             Terminal::clear_line()?;
             if let Some(line) = self.buffer.lines.get(row) {
-                Terminal::print(line)?;
+                let mut line_to_print = String::from(line);
+                line_to_print.truncate(width);
+                Terminal::print(&line_to_print)?;
             } else {
                 Self::draw_empty_row()?;
             }
             if row.saturating_add(1) < height {
-                Terminal::move_caret_to(Position {x: 0, y: row.saturating_add(1)})?;
+                Terminal::move_caret_to(Position {
+                    x: 0,
+                    y: row.saturating_add(1),
+                })?;
             }
         }
         Ok(())
     }
 
-    pub fn render(&self) -> Result<(), Error> {
-        if self.buffer.is_empty() {
-            Self::render_welcome_screen()?;
-        } else {
-            self.render_buffer()?;
+    pub fn render(&mut self) -> Result<(), Error> {
+        if self.needs_redraw {
+            if self.buffer.is_empty() {
+                Self::render_welcome_screen()?;
+            } else {
+                self.render_buffer()?;
+            }
+            self.needs_redraw = false;
         }
         Ok(())
     }
@@ -60,7 +78,12 @@ impl View {
     pub fn load_file(&mut self, filename: &str) {
         if let Ok(buffer) = Buffer::load(filename) {
             self.buffer = buffer;
+            self.needs_redraw = true;
         }
+    }
+
+    pub fn needs_redraw(&mut self) {
+        self.needs_redraw = true;
     }
 
     fn draw_welcome_message() -> Result<(), Error> {
