@@ -10,6 +10,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
+    size: Size,
 }
 
 impl Default for View {
@@ -17,61 +18,60 @@ impl Default for View {
         Self {
             buffer: Buffer::default(),
             needs_redraw: true,
+            size: Terminal::size().unwrap_or_default(),
         }
     }
 }
 
 impl View {
-    pub fn render_welcome_screen() -> Result<(), Error> {
-        let Size { height, .. } = Terminal::size()?;
+    pub fn resize(&mut self, new_size: Size) {
+        self.size = new_size;
+        self.needs_redraw = true;
+    }
+
+    fn render_welcome_screen(&self) -> Result<(), Error> {
+        let Size { height, .. } = self.size;
         #[allow(clippy::integer_division)]
         let welcome_row = height / 3;
         for row in 0..height {
             if row == welcome_row {
-                Self::draw_welcome_message()?;
+                self.draw_welcome_message(row)?;
             } else {
-                Self::draw_empty_row()?;
-            }
-            if row.saturating_add(1) < height {
-                Terminal::move_caret_to(Position {
-                    x: 0,
-                    y: row.saturating_add(1),
-                })?;
+                Self::render_line(row, "~")?;
             }
         }
         Ok(())
     }
 
-    pub fn render_buffer(&self) -> Result<(), Error> {
-        let Size { height, width } = Terminal::size()?;
+    fn render_buffer(&self) -> Result<(), Error> {
+        let Size { height, width } = self.size;
         for row in 0..height {
-            Terminal::clear_line()?;
             if let Some(line) = self.buffer.lines.get(row) {
                 let mut line_to_print = String::from(line);
                 line_to_print.truncate(width);
-                Terminal::print(&line_to_print)?;
+                Self::render_line(row, &line_to_print)?;
             } else {
-                Self::draw_empty_row()?;
-            }
-            if row.saturating_add(1) < height {
-                Terminal::move_caret_to(Position {
-                    x: 0,
-                    y: row.saturating_add(1),
-                })?;
+                Self::render_line(row, "~")?;
             }
         }
         Ok(())
     }
 
     pub fn render(&mut self) -> Result<(), Error> {
-        if self.needs_redraw {
-            if self.buffer.is_empty() {
-                Self::render_welcome_screen()?;
-            } else {
-                self.render_buffer()?;
-            }
-            self.needs_redraw = false;
+        if !self.needs_redraw {
+            return Ok(());
         }
+        let Size { height, width } = self.size;
+        if height == 0 || width == 0 {
+            return Ok(());
+        }
+
+        if self.buffer.is_empty() {
+            self.render_welcome_screen()?;
+        } else {
+            self.render_buffer()?;
+        }
+        self.needs_redraw = false;
         Ok(())
     }
 
@@ -82,13 +82,15 @@ impl View {
         }
     }
 
-    pub fn needs_redraw(&mut self) {
-        self.needs_redraw = true;
+    fn render_line(row_at: usize, line_contents: &str) -> Result<(), Error> {
+        Terminal::move_caret_to(Position { x: 0, y: row_at })?;
+        Terminal::clear_line()?;
+        Terminal::print(line_contents)?;
+        Ok(())
     }
 
-    fn draw_welcome_message() -> Result<(), Error> {
-        Terminal::clear_line()?;
-        let width = Terminal::size()?.width;
+    fn draw_welcome_message(&self, row: usize) -> Result<(), Error> {
+        let width = self.size.width;
         let mut message = format!("{NAME} NUTS EDITOR -- version {VERSION}");
         let len = message.len();
         #[allow(clippy::integer_division)]
@@ -96,13 +98,7 @@ impl View {
         let spaces = " ".repeat(padding.saturating_sub(1));
         message = format!("~{spaces}{message}");
         message.truncate(width);
-        Terminal::print(&message)?;
-        Ok(())
-    }
-
-    fn draw_empty_row() -> Result<(), Error> {
-        Terminal::clear_line()?;
-        Terminal::print("~")?;
+        Self::render_line(row, &message)?;
         Ok(())
     }
 }
