@@ -1,6 +1,5 @@
-use std::io::Error;
 
-use crate::editor::terminal::{Position, Size, Terminal};
+use super::terminal::{Size, Terminal};
 mod buffer;
 use buffer::Buffer;
 
@@ -29,50 +28,47 @@ impl View {
         self.needs_redraw = true;
     }
 
-    fn render_welcome_screen(&self) -> Result<(), Error> {
+    fn render_welcome_screen(&self){
         let Size { height, .. } = self.size;
         #[allow(clippy::integer_division)]
         let welcome_row = height / 3;
         for row in 0..height {
             if row == welcome_row {
-                self.draw_welcome_message(row)?;
+                self.draw_welcome_message(row);
             } else {
-                Self::render_line(row, "~")?;
+                Self::render_line(row, "~");
             }
         }
-        Ok(())
     }
 
-    fn render_buffer(&self) -> Result<(), Error> {
+    fn render_buffer(&self) {
         let Size { height, width } = self.size;
         for row in 0..height {
             if let Some(line) = self.buffer.lines.get(row) {
                 let mut line_to_print = String::from(line);
                 line_to_print.truncate(width);
-                Self::render_line(row, &line_to_print)?;
+                Self::render_line(row, &line_to_print);
             } else {
-                Self::render_line(row, "~")?;
+                Self::render_line(row, "~");
             }
         }
-        Ok(())
     }
 
-    pub fn render(&mut self) -> Result<(), Error> {
+    pub fn render(&mut self) {
         if !self.needs_redraw {
-            return Ok(());
+            return;
         }
         let Size { height, width } = self.size;
         if height == 0 || width == 0 {
-            return Ok(());
+            return;
         }
 
         if self.buffer.is_empty() {
-            self.render_welcome_screen()?;
+            self.render_welcome_screen();
         } else {
-            self.render_buffer()?;
+            self.render_buffer();
         }
         self.needs_redraw = false;
-        Ok(())
     }
 
     pub fn load_file(&mut self, filename: &str) {
@@ -82,14 +78,12 @@ impl View {
         }
     }
 
-    fn render_line(row_at: usize, line_contents: &str) -> Result<(), Error> {
-        Terminal::move_caret_to(Position { x: 0, y: row_at })?;
-        Terminal::clear_line()?;
-        Terminal::print(line_contents)?;
-        Ok(())
+    fn render_line(row_at: usize, line_contents: &str) {
+        let result = Terminal::print_line(row_at, line_contents);
+        debug_assert!(result.is_ok(), "Failed to render line");
     }
 
-    fn draw_welcome_message(&self, row: usize) -> Result<(), Error> {
+    fn draw_welcome_message(&self, row: usize) {
         let width = self.size.width;
         let mut message = format!("{NAME} NUTS EDITOR -- version {VERSION}");
         let len = message.len();
@@ -98,7 +92,6 @@ impl View {
         let spaces = " ".repeat(padding.saturating_sub(1));
         message = format!("~{spaces}{message}");
         message.truncate(width);
-        Self::render_line(row, &message)?;
-        Ok(())
+        Self::render_line(row, &message);
     }
 }

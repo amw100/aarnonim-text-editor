@@ -34,9 +34,10 @@ impl Terminal {
     }
 
     pub fn terminate() -> Result<(), Error> {
+        Self::leave_alternate_screen()?;
+        Self::show_cursor()?;
         Self::execute()?;
         disable_raw_mode()?;
-        Self::leave_alternate_screen()?;
         Ok(())
     }
 
@@ -68,6 +69,13 @@ impl Terminal {
 
     pub fn print(text: &str) -> Result<(), std::io::Error> {
         Self::queue_command(Print(text))?;
+        Ok(())
+    }
+
+    pub fn print_line(row: usize, line_text: &str) -> Result<(), std::io::Error> {
+        Self::move_caret_to(Position { x: 0, y: row })?;
+        Self::clear_line()?;
+        Self::print(line_text)?;
         Ok(())
     }
 
