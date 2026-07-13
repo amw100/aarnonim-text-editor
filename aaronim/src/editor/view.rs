@@ -1,15 +1,24 @@
+use std::cmp::min;
 
-use super::terminal::{Size, Terminal};
+use super::terminal::{Position, Size, Terminal};
 mod buffer;
 use buffer::Buffer;
+use crossterm::event::KeyCode;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[derive(Clone, Copy, Default)]
+pub struct Location {
+    row: usize,
+    column: usize,
+}
 
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
     size: Size,
+    location: Location,
 }
 
 impl Default for View {
@@ -18,6 +27,7 @@ impl Default for View {
             buffer: Buffer::default(),
             needs_redraw: true,
             size: Terminal::size().unwrap_or_default(),
+            location: Location { row: 0, column: 0 },
         }
     }
 }
@@ -28,7 +38,71 @@ impl View {
         self.needs_redraw = true;
     }
 
-    fn render_welcome_screen(&self){
+    pub fn render(&mut self) {
+        if !self.needs_redraw {
+            return;
+        }
+        let Size { height, width } = self.size;
+        if height == 0 || width == 0 {
+            return;
+        }
+
+        if self.buffer.is_empty() {
+            self.render_welcome_screen();
+        } else {
+            self.render_buffer();
+        }
+        let _ = Terminal::move_caret_to(Position {
+            x: self.location.column,
+            y: self.location.row,
+        });
+        self.needs_redraw = false;
+    }
+
+    pub fn load_file(&mut self, filename: &str) {
+        if let Ok(buffer) = Buffer::load(filename) {
+            self.buffer = buffer;
+            self.needs_redraw = true;
+        }
+    }
+
+    pub fn move_location(&mut self, code: KeyCode) {
+        let Location {
+            mut row,
+            mut column,
+        } = self.location;
+        let Size { height, width } = Terminal::size().unwrap_or_default();
+        match code {
+            KeyCode::Up => {
+                row = row.saturating_sub(1);
+            }
+            KeyCode::Down => {
+                row = min(height.saturating_sub(1), row.saturating_add(1));
+            }
+            KeyCode::Right => {
+                column = min(width.saturating_sub(1), column.saturating_add(1));
+            }
+            KeyCode::Left => {
+                column = column.saturating_sub(1);
+            }
+            KeyCode::PageUp => {
+                row = 0;
+            }
+            KeyCode::PageDown => {
+                row = height.saturating_sub(1);
+            }
+            KeyCode::End => {
+                column = width.saturating_sub(1);
+            }
+            KeyCode::Home => {
+                column = 0;
+            }
+            _ => (),
+        }
+        self.location = Location { row, column };
+    }
+
+    fn render_welcome_screen(&self) {
         let Size { height, .. } = self.size;
         #[allow(clippy::integer_division)]
         let welcome_row = height / 3;
@@ -51,30 +125,6 @@ impl View {
             } else {
                 Self::render_line(row, "~");
             }
-        }
-    }
-
-    pub fn render(&mut self) {
-        if !self.needs_redraw {
-            return;
-        }
-        let Size { height, width } = self.size;
-        if height == 0 || width == 0 {
-            return;
-        }
-
-        if self.buffer.is_empty() {
-            self.render_welcome_screen();
-        } else {
-            self.render_buffer();
-        }
-        self.needs_redraw = false;
-    }
-
-    pub fn load_file(&mut self, filename: &str) {
-        if let Ok(buffer) = Buffer::load(filename) {
-            self.buffer = buffer;
-            self.needs_redraw = true;
         }
     }
 
