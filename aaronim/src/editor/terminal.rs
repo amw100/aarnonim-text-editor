@@ -1,6 +1,7 @@
 use crossterm::Command;
 use crossterm::cursor::{MoveTo, Show};
 use crossterm::style::Print;
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{
     cursor::Hide,
     queue,
@@ -27,6 +28,7 @@ impl Terminal {
         enable_raw_mode()?;
         Self::clear_screen()?;
         Self::move_caret_to(Position { x: 0, y: 0 })?;
+        Self::enter_alternate_screen()?;
         Self::execute()?;
         Ok(())
     }
@@ -34,6 +36,7 @@ impl Terminal {
     pub fn terminate() -> Result<(), Error> {
         Self::execute()?;
         disable_raw_mode()?;
+        Self::leave_alternate_screen()?;
         Ok(())
     }
 
@@ -83,6 +86,16 @@ impl Terminal {
         #[allow(clippy::as_conversions)]
         let width = width_u16 as usize;
         Ok(Size { height, width })
+    }
+
+    fn enter_alternate_screen() -> Result<(), Error> {
+        Self::queue_command(EnterAlternateScreen)?;
+        Ok(())
+    }
+
+    fn leave_alternate_screen() -> Result<(), Error> {
+        Self::queue_command(LeaveAlternateScreen)?;
+        Ok(())
     }
 
     fn queue_command<T: Command>(command: T) -> Result<(), Error> {

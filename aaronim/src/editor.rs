@@ -26,6 +26,13 @@ pub struct Editor {
 }
 
 impl Editor {
+    pub fn new() -> Self {
+        Self {
+            should_quit: false,
+            location: Location { row: 0, column: 0 },
+            view: View::default(),
+        }
+    }
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
         self.handle_args();
@@ -144,5 +151,15 @@ impl Editor {
             Terminal::execute()?;
         }
         Ok(())
+    }
+}
+
+impl Drop for Editor {
+    fn drop(&mut self) {
+        let _ = Terminal::terminate();
+        if self.should_quit {
+            let _ = Terminal::print("GOODBYE NUTS!\r\n");
+            let _ = Terminal::execute();
+        }
     }
 }
