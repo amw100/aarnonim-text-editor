@@ -39,24 +39,23 @@ impl View {
     }
 
     pub fn render(&mut self) {
-        if !self.needs_redraw {
-            return;
-        }
         let Size { height, width } = self.size;
         if height == 0 || width == 0 {
             return;
         }
 
-        if self.buffer.is_empty() {
-            self.render_welcome_screen();
-        } else {
-            self.render_buffer();
+        if self.needs_redraw {
+            if self.buffer.is_empty() {
+                self.render_welcome_screen();
+            } else {
+                self.render_buffer();
+            }
+            self.needs_redraw = false;
         }
         let _ = Terminal::move_caret_to(Position {
             x: self.location.column,
             y: self.location.row,
         });
-        self.needs_redraw = false;
     }
 
     pub fn load_file(&mut self, filename: &str) {
