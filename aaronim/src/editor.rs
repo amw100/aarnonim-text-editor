@@ -13,7 +13,7 @@ use terminal::Terminal;
 mod view;
 use view::View;
 
-use crate::editor::terminal::{Size};
+use crate::editor::terminal::Size;
 
 #[derive(Default)]
 pub struct Editor {
@@ -60,8 +60,6 @@ impl Editor {
         }
     }
 
-
-
     #[allow(clippy::needless_pass_by_value)]
     fn evaluate_event(&mut self, event: Event) {
         match event {
@@ -103,6 +101,7 @@ impl Editor {
     fn refresh_screen(&mut self) {
         let _ = Terminal::hide_cursor();
         self.view.render();
+        let _ = Terminal::move_caret_to(self.view.caret_position());
         let _ = Terminal::show_cursor();
         let _ = Terminal::execute();
     }

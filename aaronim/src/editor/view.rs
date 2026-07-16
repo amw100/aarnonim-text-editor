@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use super::terminal::{Position, Size, Terminal};
 mod buffer;
 use buffer::Buffer;
@@ -18,7 +16,8 @@ pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
     size: Size,
-    location: Location,
+    caret_location: Location,
+    scroll_offset: Location,
 }
 
 impl Default for View {
@@ -27,7 +26,8 @@ impl Default for View {
             buffer: Buffer::default(),
             needs_redraw: true,
             size: Terminal::size().unwrap_or_default(),
-            location: Location { row: 0, column: 0 },
+            caret_location: Location { row: 0, column: 0 },
+            scroll_offset: Location { row: 0, column: 0 },
         }
     }
 }
@@ -35,6 +35,7 @@ impl Default for View {
 impl View {
     pub fn resize(&mut self, new_size: Size) {
         self.size = new_size;
+        self.scroll_into_view();
         self.needs_redraw = true;
     }
 
@@ -52,10 +53,6 @@ impl View {
             }
             self.needs_redraw = false;
         }
-        let _ = Terminal::move_caret_to(Position {
-            x: self.location.column,
-            y: self.location.row,
-        });
     }
 
     pub fn load_file(&mut self, filename: &str) {
@@ -69,26 +66,26 @@ impl View {
         let Location {
             mut row,
             mut column,
-        } = self.location;
-        let Size { height, width } = Terminal::size().unwrap_or_default();
+        } = self.caret_location;
+        let Size { height, width } = self.size;
         match code {
             KeyCode::Up => {
                 row = row.saturating_sub(1);
             }
             KeyCode::Down => {
-                row = min(height.saturating_sub(1), row.saturating_add(1));
+                row = row.saturating_add(1);
             }
             KeyCode::Right => {
-                column = min(width.saturating_sub(1), column.saturating_add(1));
+                column = column.saturating_add(1);
             }
             KeyCode::Left => {
                 column = column.saturating_sub(1);
             }
             KeyCode::PageUp => {
-                row = 0;
+                row = row.saturating_sub(height);
             }
             KeyCode::PageDown => {
-                row = height.saturating_sub(1);
+                row = height.saturating_add(height);
             }
             KeyCode::End => {
                 column = width.saturating_sub(1);
@@ -98,7 +95,45 @@ impl View {
             }
             _ => (),
         }
-        self.location = Location { row, column };
+        self.caret_location = Location { row, column };
+        self.scroll_into_view();
+    }
+
+    pub fn caret_position(&self) -> Position {
+        Position {
+            x: self
+                .caret_location
+                .column
+                .saturating_sub(self.scroll_offset.row),
+            y: self
+                .caret_location
+                .row
+                .saturating_sub(self.scroll_offset.column),
+        }
+    }
+
+    fn scroll_into_view(&mut self) {
+        let Size { height, width } = self.size;
+        let Location { row, column } = self.caret_location;
+        let mut redraw = false;
+
+        if row >= height.saturating_add(self.scroll_offset.row) {
+            self.scroll_offset.row = row.saturating_sub(height).saturating_add(1);
+            redraw = true;
+        } else if row < self.scroll_offset.row {
+            self.scroll_offset.row = row;
+            redraw = true;
+        }
+
+        if column >= width.saturating_add(self.scroll_offset.column) {
+            self.scroll_offset.column = column.saturating_sub(width).saturating_add(1);
+            redraw = true;
+        } else if column < self.scroll_offset.column {
+            self.scroll_offset.column = column;
+            redraw = true;
+        }
+
+        self.needs_redraw = self.needs_redraw || redraw;
     }
 
     fn render_welcome_screen(&self) {
@@ -116,13 +151,20 @@ impl View {
 
     fn render_buffer(&self) {
         let Size { height, width } = self.size;
-        for row in 0..height {
-            if let Some(line) = self.buffer.lines.get(row) {
-                let mut line_to_print = String::from(line);
-                line_to_print.truncate(width);
-                Self::render_line(row, &line_to_print);
+        for screen_row in 0..height {
+            if let Some(line) = self
+                .buffer
+                .lines
+                .get(screen_row.saturating_add(self.scroll_offset.row))
+            {
+                let line_to_print: String = line
+                    .chars()
+                    .skip(self.scroll_offset.column)
+                    .take(width)
+                    .collect();
+                Self::render_line(screen_row, &line_to_print);
             } else {
-                Self::render_line(row, "~");
+                Self::render_line(screen_row, "~");
             }
         }
     }

@@ -16,6 +16,6 @@ impl Buffer {
         for line in file_contents.lines() {
             lines.push(String::from(line));
         }
-        Ok (Self {lines})
+        Ok(Self { lines })
     }
 }
