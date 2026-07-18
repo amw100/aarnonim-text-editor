@@ -1,7 +1,8 @@
+use crate::editor::editor_command::{Direction, EditorCommand};
+
 use super::terminal::{Position, Size, Terminal};
 mod buffer;
 use buffer::Buffer;
-use crossterm::event::KeyCode;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -33,12 +34,6 @@ impl Default for View {
 }
 
 impl View {
-    pub fn resize(&mut self, new_size: Size) {
-        self.size = new_size;
-        self.scroll_into_view();
-        self.needs_redraw = true;
-    }
-
     pub fn render(&mut self) {
         let Size { height, width } = self.size;
         if height == 0 || width == 0 {
@@ -62,41 +57,12 @@ impl View {
         }
     }
 
-    pub fn move_location(&mut self, code: KeyCode) {
-        let Location {
-            mut row,
-            mut column,
-        } = self.caret_location;
-        let Size { height, width } = self.size;
-        match code {
-            KeyCode::Up => {
-                row = row.saturating_sub(1);
-            }
-            KeyCode::Down => {
-                row = row.saturating_add(1);
-            }
-            KeyCode::Right => {
-                column = column.saturating_add(1);
-            }
-            KeyCode::Left => {
-                column = column.saturating_sub(1);
-            }
-            KeyCode::PageUp => {
-                row = row.saturating_sub(height);
-            }
-            KeyCode::PageDown => {
-                row = height.saturating_add(height);
-            }
-            KeyCode::End => {
-                column = width.saturating_sub(1);
-            }
-            KeyCode::Home => {
-                column = 0;
-            }
-            _ => (),
+    pub fn handle_command(&mut self, command: EditorCommand) {
+        match command {
+            EditorCommand::Resize(size) => self.resize(size),
+            EditorCommand::Move(direction) => self.move_location(&direction),
+            EditorCommand::Quit => {}
         }
-        self.caret_location = Location { row, column };
-        self.scroll_into_view();
     }
 
     pub fn caret_position(&self) -> Position {
@@ -104,12 +70,54 @@ impl View {
             x: self
                 .caret_location
                 .column
-                .saturating_sub(self.scroll_offset.row),
+                .saturating_sub(self.scroll_offset.column),
             y: self
                 .caret_location
                 .row
-                .saturating_sub(self.scroll_offset.column),
+                .saturating_sub(self.scroll_offset.row),
         }
+    }
+
+    fn move_location(&mut self, direction: &Direction) {
+        let Location {
+            mut row,
+            mut column,
+        } = self.caret_location;
+        let Size { height, width } = self.size;
+        match direction {
+            Direction::Up => {
+                row = row.saturating_sub(1);
+            }
+            Direction::Down => {
+                row = row.saturating_add(1);
+            }
+            Direction::Right => {
+                column = column.saturating_add(1);
+            }
+            Direction::Left => {
+                column = column.saturating_sub(1);
+            }
+            Direction::PageUp => {
+                row = row.saturating_sub(height);
+            }
+            Direction::PageDown => {
+                row = row.saturating_add(height);
+            }
+            Direction::End => {
+                column = width.saturating_sub(1);
+            }
+            Direction::Home => {
+                column = 0;
+            }
+        }
+        self.caret_location = Location { row, column };
+        self.scroll_into_view();
+    }
+
+    fn resize(&mut self, new_size: Size) {
+        self.size = new_size;
+        self.scroll_into_view();
+        self.needs_redraw = true;
     }
 
     fn scroll_into_view(&mut self) {

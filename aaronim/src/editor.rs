@@ -1,19 +1,15 @@
-use crossterm::event::{
-    Event::{self, Key},
-    KeyCode::{self},
-    KeyEvent, KeyEventKind, KeyModifiers, read,
-};
+use crossterm::event::{Event, KeyEvent, KeyEventKind, read};
 use std::{
     io::Error,
     panic::{set_hook, take_hook},
 };
 
+mod editor_command;
 mod terminal;
-use terminal::Terminal;
 mod view;
+use editor_command::EditorCommand;
+use terminal::Terminal;
 use view::View;
-
-use crate::editor::terminal::Size;
 
 #[derive(Default)]
 pub struct Editor {
@@ -62,39 +58,28 @@ impl Editor {
 
     #[allow(clippy::needless_pass_by_value)]
     fn evaluate_event(&mut self, event: Event) {
-        match event {
-            Key(KeyEvent {
-                code,
-                modifiers,
-                kind: KeyEventKind::Press,
-                ..
-            }) => match (code, modifiers) {
-                (KeyCode::Char('q'), KeyModifiers::CONTROL) => {
-                    self.should_quit = true;
+        let should_process = match &event {
+            Event::Key(KeyEvent { kind, .. }) => kind == &KeyEventKind::Press,
+            Event::Resize(_, _) => true,
+            _ => false,
+        };
+        if should_process {
+            match EditorCommand::try_from(event) {
+                Ok(command) => {
+                    if matches!(command, EditorCommand::Quit) {
+                        self.should_quit = true;
+                    } else {
+                        self.view.handle_command(command);
+                    }
                 }
-                (
-                    KeyCode::Up
-                    | KeyCode::Down
-                    | KeyCode::Left
-                    | KeyCode::Right
-                    | KeyCode::PageUp
-                    | KeyCode::PageDown
-                    | KeyCode::End
-                    | KeyCode::Home,
-                    _,
-                ) => {
-                    self.view.move_location(code);
+                Err(err) => {
+                    #[cfg(debug_assertions)]
+                    panic!("Could not handle command: {err}");
                 }
-                _ => {}
-            },
-            Event::Resize(width_u16, height_u16) => {
-                #[allow(clippy::as_conversions)]
-                let height = height_u16 as usize;
-                #[allow(clippy::as_conversions)]
-                let width = width_u16 as usize;
-                self.view.resize(Size { height, width });
             }
-            _ => {}
+        } else {
+            #[cfg(debug_assertions)]
+            panic!("Received and discarded unsopported or non-press event");
         }
     }
 
