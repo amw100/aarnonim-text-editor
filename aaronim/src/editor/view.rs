@@ -4,14 +4,12 @@ use super::terminal::{Position, Size, Terminal};
 mod buffer;
 use buffer::Buffer;
 
+mod location;
+use location::Location;
+mod line;
+
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[derive(Clone, Copy, Default)]
-pub struct Location {
-    row: usize,
-    column: usize,
-}
 
 pub struct View {
     buffer: Buffer,
@@ -66,16 +64,7 @@ impl View {
     }
 
     pub fn caret_position(&self) -> Position {
-        Position {
-            x: self
-                .caret_location
-                .column
-                .saturating_sub(self.scroll_offset.column),
-            y: self
-                .caret_location
-                .row
-                .saturating_sub(self.scroll_offset.row),
-        }
+        self.caret_location.subtract(&self.scroll_offset).into()
     }
 
     fn move_location(&mut self, direction: &Direction) {
@@ -165,12 +154,9 @@ impl View {
                 .lines
                 .get(screen_row.saturating_add(self.scroll_offset.row))
             {
-                let line_to_print: String = line
-                    .chars()
-                    .skip(self.scroll_offset.column)
-                    .take(width)
-                    .collect();
-                Self::render_line(screen_row, &line_to_print);
+                let left = self.scroll_offset.column;
+                let right = self.scroll_offset.column.saturating_add(width);
+                Self::render_line(screen_row, &line.get(left..right));
             } else {
                 Self::render_line(screen_row, "~");
             }
