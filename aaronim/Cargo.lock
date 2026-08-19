@@ -7,6 +7,7 @@ name = "aaronim"
 version = "0.1.0"
 dependencies = [
  "crossterm",
+ "unicode-segmentation",
 ]
 
 [[package]]

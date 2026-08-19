@@ -83,9 +83,7 @@ impl View {
                 row = row.saturating_sub(1);
             }
             Direction::Down => {
-                if row < self.buffer.lines.len() {
-                    row = row.saturating_add(1);
-                }
+                row = row.saturating_add(1);
             }
             Direction::Right => {
                 let length = self.buffer.lines.get(row).map_or(0, Line::len);
