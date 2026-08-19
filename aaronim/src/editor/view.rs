@@ -1,4 +1,9 @@
-use crate::editor::editor_command::{Direction, EditorCommand};
+use std::cmp::min;
+
+use crate::editor::{
+    editor_command::{Direction, EditorCommand},
+    view::line::Line,
+};
 
 use super::terminal::{Position, Size, Terminal};
 mod buffer;
@@ -72,33 +77,52 @@ impl View {
             mut row,
             mut column,
         } = self.caret_location;
-        let Size { height, width } = self.size;
+        let Size { height, .. } = self.size;
         match direction {
             Direction::Up => {
                 row = row.saturating_sub(1);
             }
             Direction::Down => {
-                row = row.saturating_add(1);
+                if row < self.buffer.lines.len() {
+                    row = row.saturating_add(1);
+                }
             }
             Direction::Right => {
-                column = column.saturating_add(1);
+                let length = self.buffer.lines.get(row).map_or(0, Line::len);
+                if column < length {
+                    column = column.saturating_add(1);
+                } else {
+                    row = row.saturating_add(1);
+                    column = 0;
+                }
             }
             Direction::Left => {
-                column = column.saturating_sub(1);
+                if column > 0 {
+                    column = column.saturating_sub(1);
+                } else if row > 0 {
+                    row = row.saturating_sub(1);
+                    column = self.buffer.lines.get(row).map_or(0, Line::len);
+                }
             }
             Direction::PageUp => {
                 row = row.saturating_sub(height);
             }
             Direction::PageDown => {
-                row = row.saturating_add(height);
+                row = row.saturating_add(height).saturating_sub(1);
             }
             Direction::End => {
-                column = width.saturating_sub(1);
+                column = self.buffer.lines.get(row).map_or(0, Line::len);
             }
             Direction::Home => {
                 column = 0;
             }
         }
+        column = self
+            .buffer
+            .lines
+            .get(row)
+            .map_or(0, |line| min(line.len(), column));
+        row = min(row, self.buffer.lines.len());
         self.caret_location = Location { row, column };
         self.scroll_into_view();
     }
